@@ -16,6 +16,7 @@ pub mod cryptex_sol_anchor {
         )?;
 
         Ok(())
+    }
 }
 
 #[account]
