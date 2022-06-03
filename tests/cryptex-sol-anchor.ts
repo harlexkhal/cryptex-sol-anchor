@@ -1,16 +1,50 @@
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
 import { CryptexSolAnchor } from "../target/types/cryptex_sol_anchor";
+import { PublicKey } from "@solana/web3.js";
+import {
+  getKeypair,
+  getProgramId,
+  getPublicKey,
+} from "./utils";
+import { BN } from "bn.js";
 
-describe("cryptex-sol-anchor", () => {
+describe("Cryptex Dapp Test", () => {
+  const provider = anchor.AnchorProvider.env();
+
   // Configure the client to use the local cluster.
-  anchor.setProvider(anchor.AnchorProvider.env());
+  anchor.setProvider(provider);
 
   const program = anchor.workspace.CryptexSolAnchor as Program<CryptexSolAnchor>;
 
-  it("Is initialized!", async () => {
-    // Add your test here.
-    const tx = await program.methods.initialize().rpc();
-    console.log("Your transaction signature", tx);
+  it("Test stake", async () => {
+    const keypairUser = getKeypair("main");
+    const usdcAcctUser = getPublicKey("usdc");
+    const cryptex_usdcAcctUser = getPublicKey("cusdc");
+    const programId = getProgramId();
+
+    await program.methods.stake(new BN(1000000)).accounts({
+        signer: keypairUser.publicKey,
+        destinationPubkey: new PublicKey('ACqqDBXdFhgatszRESwmdkfgLH7coJm7SxaTuiEhEQ9y'),
+        sourcePubkey: usdcAcctUser,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([keypairUser])
+      .rpc();
+  });
+
+  it("Test mint", async () => {
+    const keypairUser = getKeypair("main");
+    const cryptex_usdcAcctUser = getPublicKey("cusdc");
+
+    await program.methods.mint(new BN(1000000)).accounts({
+        signer: keypairUser.publicKey,
+        mintTokenPubkey: new PublicKey('ACqqDBXdFhgatszRESwmdkfgLH7coJm7SxaTuiEhEQ9y'),
+        destinationPubkey: cryptex_usdcAcctUser,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([keypairUser])
+      .rpc();
   });
 });

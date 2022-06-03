@@ -8,30 +8,25 @@ declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 pub mod cryptex_sol_anchor {
     use super::*;
 
-    pub fn stake(ctx: Context<Stake>) -> Result<()> {
+    pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
 
         token::transfer(
             ctx.accounts.transfer_to_fluidity_context(),
-            ctx.accounts.stake_account.amount,
+            amount,
         )?;
 
         Ok(())
     }
 
-    pub fn mint(ctx: Context<Fmint>) -> Result<()> {
+    pub fn mint(ctx: Context<Fmint>, amount: u64) -> Result<()> {
 
         token::mint_to(
             ctx.accounts.mint_to_user_context(),
-            ctx.accounts.stake_account.amount,
+            amount,
         )?;
 
         Ok(())
     }
-}
-
-#[account]
-pub struct StakeAccount {
-    pub amount: u64,
 }
 
 #[derive(Accounts)]
@@ -43,7 +38,6 @@ pub struct Stake<'info> {
     pub destination_pubkey: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub source_pubkey: Box<Account<'info, TokenAccount>>,
-    pub stake_account: Box<Account<'info, StakeAccount>>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub token_program: AccountInfo<'info>,
 }
@@ -57,7 +51,6 @@ pub struct Fmint<'info> {
     pub mint_token_pubkey: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub destination_pubkey: Box<Account<'info, TokenAccount>>,
-    pub stake_account: Box<Account<'info, StakeAccount>>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub token_program: AccountInfo<'info>,
 }
