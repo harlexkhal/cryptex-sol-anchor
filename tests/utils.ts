@@ -10,12 +10,12 @@ export const logError = (msg: string) => {
 
 export const getPublicKey = (name: string) =>
   new PublicKey(
-    JSON.parse(fs.readFileSync(`keys/${name}_pub.json`) as unknown as string)
+    JSON.parse(fs.readFileSync(`./tests/keys/${name}_pub.json`) as unknown as string)
   );
 
 export const getPrivateKey = (name: string) =>
   Uint8Array.from(
-    JSON.parse(fs.readFileSync(`keys/${name}.json`) as unknown as string)
+    JSON.parse(fs.readFileSync(`./tests/keys/${name}.json`) as unknown as string)
   );
 
 export const getKeypair = (name: string) =>

@@ -1,7 +1,7 @@
 [features]
 seeds = false
-[programs.localnet]
-cryptex_sol_anchor = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+[programs.devnet]
+cryptex_sol_anchor = "HZoyHJuhYdp7qSBXbthx8mRX5hNTQWcyR5icn27CVPeg"
 
 [registry]
 url = "https://anchor.projectserum.com"

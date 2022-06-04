@@ -1,4 +1,4 @@
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { TOKEN_PROGRAM_ID, transferInstructionData } from "@solana/spl-token";
 import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
 import { CryptexSolAnchor } from "../target/types/cryptex_sol_anchor";
@@ -9,6 +9,7 @@ import {
   getPublicKey,
 } from "./utils";
 import { BN } from "bn.js";
+import { assert } from "chai";
 
 describe("Cryptex Dapp Test", () => {
   const provider = anchor.AnchorProvider.env();
@@ -32,6 +33,7 @@ describe("Cryptex Dapp Test", () => {
       })
       .signers([keypairUser])
       .rpc();
+      assert.ok(true);
   });
 
   it("Test mint", async () => {
@@ -40,11 +42,12 @@ describe("Cryptex Dapp Test", () => {
 
     await program.methods.mint(new BN(1000000)).accounts({
         signer: keypairUser.publicKey,
-        mintTokenPubkey: new PublicKey('ACqqDBXdFhgatszRESwmdkfgLH7coJm7SxaTuiEhEQ9y'),
+        mintTokenPubkey: new PublicKey('6zdV6NKr7JnnyFxwGyBjgD3N8sJrR9rM5nmqUw7msrS'),
         destinationPubkey: cryptex_usdcAcctUser,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .signers([keypairUser])
       .rpc();
+      assert.ok(true);
   });
 });

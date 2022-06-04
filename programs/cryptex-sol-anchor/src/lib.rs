@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, CloseAccount, MintTo, SetAuthority, TokenAccount, Transfer};
 use spl_token::instruction::AuthorityType;
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("HZoyHJuhYdp7qSBXbthx8mRX5hNTQWcyR5icn27CVPeg");
 
 #[program]
 pub mod cryptex_sol_anchor {
