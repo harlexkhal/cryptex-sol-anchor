@@ -7,7 +7,7 @@ cryptex_sol_anchor = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 url = "https://anchor.projectserum.com"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "/home/alex/.config/solana/id.json"
 
 [scripts]
