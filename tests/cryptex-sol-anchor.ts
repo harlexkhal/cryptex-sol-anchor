@@ -19,35 +19,73 @@ describe("Cryptex Dapp Test", () => {
 
   const program = anchor.workspace.CryptexSolAnchor as Program<CryptexSolAnchor>;
 
-  it("Test stake", async () => {
+  /*it("Make PDA take control of fluidity's ${Usdc} token account", async () => {
     const keypairUser = getKeypair("main");
     const usdcAcctUser = getPublicKey("usdc");
     const cryptex_usdcAcctUser = getPublicKey("cusdc");
     const programId = getProgramId();
 
-    await program.methods.stake(new BN(1000000)).accounts({
-        signer: keypairUser.publicKey,
-        destinationPubkey: new PublicKey('ACqqDBXdFhgatszRESwmdkfgLH7coJm7SxaTuiEhEQ9y'),
-        sourcePubkey: usdcAcctUser,
+    const current_auth_keypair = getKeypair("mint_auth");
+    
+    const assumed_fluidity_usdc_account = new PublicKey('ACqqDBXdFhgatszRESwmdkfgLH7coJm7SxaTuiEhEQ9y')
+
+    await program.methods.init().accounts({
+        signer: current_auth_keypair.publicKey,
+        fromOrToPubkey: assumed_fluidity_usdc_account,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
-      .signers([keypairUser])
+      .signers([current_auth_keypair])
       .rpc();
       assert.ok(true);
-  });
+  });*/
 
-  it("Test mint", async () => {
+  it("Wrap Token", async () => {
     const keypairUser = getKeypair("main");
+    const usdcAcctUser = getPublicKey("usdc");
     const cryptex_usdcAcctUser = getPublicKey("cusdc");
+    const programId = getProgramId();
 
-    await program.methods.mint(new BN(1000000)).accounts({
+    const PDA = await PublicKey.findProgramAddress(
+      [Buffer.from("cryptex")],
+      programId
+    );
+    await program.methods.wrap(new BN(10)).accounts({
         signer: keypairUser.publicKey,
-        mintTokenPubkey: new PublicKey('6zdV6NKr7JnnyFxwGyBjgD3N8sJrR9rM5nmqUw7msrS'),
-        destinationPubkey: cryptex_usdcAcctUser,
+        toPubkey: new PublicKey('ACqqDBXdFhgatszRESwmdkfgLH7coJm7SxaTuiEhEQ9y'),
+        ownerPubkey: usdcAcctUser,
+        mintPubkey: new PublicKey('6zdV6NKr7JnnyFxwGyBjgD3N8sJrR9rM5nmqUw7msrS'),
+        fromOrToPubkey: cryptex_usdcAcctUser,
+        pdaAccountPubkey: PDA[0],
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .signers([keypairUser])
       .rpc();
       assert.ok(true);
   });
+
+  it("UnWrap Token", async () => {
+    const keypairUser = getKeypair("main");
+    const usdcAcctUser = getPublicKey("usdc");
+    const cryptex_usdcAcctUser = getPublicKey("cusdc");
+    const programId = getProgramId();
+
+    const PDA = await PublicKey.findProgramAddress(
+      [Buffer.from("cryptex")],
+      programId
+    );
+
+    await program.methods.unwrap(new BN(10)).accounts({
+      signer: keypairUser.publicKey,
+      toPubkey: usdcAcctUser,
+      ownerPubkey: new PublicKey('ACqqDBXdFhgatszRESwmdkfgLH7coJm7SxaTuiEhEQ9y'),
+      mintPubkey: new PublicKey('6zdV6NKr7JnnyFxwGyBjgD3N8sJrR9rM5nmqUw7msrS'),
+      fromOrToPubkey: cryptex_usdcAcctUser,
+      pdaAccountPubkey: PDA[0],
+      tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([keypairUser])
+      .rpc();
+      assert.ok(true);
+  });
+
 });

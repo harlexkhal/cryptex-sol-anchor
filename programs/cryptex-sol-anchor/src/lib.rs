@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, CloseAccount, MintTo, SetAuthority, TokenAccount, Transfer};
+use anchor_spl::token::{self, CloseAccount, Burn, Mint, MintTo, SetAuthority, TokenAccount, Transfer, InitializeAccount};
 use spl_token::instruction::AuthorityType;
 
 declare_id!("HZoyHJuhYdp7qSBXbthx8mRX5hNTQWcyR5icn27CVPeg");
@@ -8,61 +8,163 @@ declare_id!("HZoyHJuhYdp7qSBXbthx8mRX5hNTQWcyR5icn27CVPeg");
 pub mod cryptex_sol_anchor {
     use super::*;
 
-    pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
+    pub fn wrap(ctx: Context<Wrap>, amount: u64) -> Result<()> {
 
+        let (pda, bump) = Pubkey::find_program_address(&[b"cryptex"], ctx.program_id);
+
+        msg!("pda {}, porgramID {} :: Wrapping!", pda, ctx.program_id);
         token::transfer(
-            ctx.accounts.transfer_to_fluidity_context(),
+            ctx.accounts.transfer_context(),
             amount,
         )?;
-
-        Ok(())
-    }
-
-    pub fn mint(ctx: Context<Fmint>, amount: u64) -> Result<()> {
 
         token::mint_to(
-            ctx.accounts.mint_to_user_context(),
+         ctx.accounts.mint_context().with_signer(&[&[&b"cryptex"[..], &[bump]]]),
+         amount,
+        )?;
+        
+        Ok(())
+    }
+
+    pub fn unwrap(ctx: Context<UnWrap>, amount: u64) -> Result<()> {
+
+        let (pda, bump) = Pubkey::find_program_address(&[b"cryptex"], ctx.program_id);
+
+        msg!("pda {}, porgramID {} :: Unwrapping!", pda, ctx.program_id);
+
+        token::burn(
+         ctx.accounts.burn_context(),
+         amount,
+        )?;
+        
+        // this happen because init fn has been called which authorizes a pda to transfer from token back from this address
+        token::transfer(
+            ctx.accounts.pda_transfer_context().with_signer(&[&[&b"cryptex"[..], &[bump]]]),
             amount,
         )?;
+        Ok(())
+    }
 
+    //This function should only be called once in the entire life time of the application, calling twice
+    //would fail on second try because its just basically authorizing pda's to use a particular token from 
+    //the user's token wallet address that signed the authorization.
+    pub fn init(ctx: Context<Init>) -> Result<()> {
+
+        let (pda, _bump) = Pubkey::find_program_address(&[b"cryptex"], ctx.program_id);
+
+        token::set_authority(
+            ctx.accounts.init_set_authority_context(),
+            AuthorityType::AccountOwner,
+            Some(pda),
+        )?;
+        
         Ok(())
     }
 }
 
 #[derive(Accounts)]
-pub struct Stake<'info> {
+pub struct Wrap<'info> {
     #[account(signer)]
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub signer: AccountInfo<'info>,
     #[account(mut)]
-    pub destination_pubkey: Box<Account<'info, TokenAccount>>,
+    pub to_pubkey: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
-    pub source_pubkey: Box<Account<'info, TokenAccount>>,
+    pub owner_pubkey: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub mint_pubkey: Box<Account<'info, Mint>>,
+    #[account(mut)]
+    pub from_or_to_pubkey: Box<Account<'info, TokenAccount>>,
+    #[account()]
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub pda_account_pubkey: AccountInfo<'info>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub token_program: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
-pub struct Fmint<'info> {
+pub struct UnWrap<'info> {
     #[account(signer)]
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub signer: AccountInfo<'info>,
     #[account(mut)]
-    pub mint_token_pubkey: Box<Account<'info, TokenAccount>>,
+    pub to_pubkey: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
-    pub destination_pubkey: Box<Account<'info, TokenAccount>>,
+    pub owner_pubkey: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub mint_pubkey: Box<Account<'info, Mint>>,
+    #[account(mut)]
+    pub from_or_to_pubkey: Box<Account<'info, TokenAccount>>,
+    #[account()]
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub pda_account_pubkey: AccountInfo<'info>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub token_program: AccountInfo<'info>,
 }
 
-impl<'info> Stake<'info> {
-    fn transfer_to_fluidity_context(
+#[derive(Accounts)]
+pub struct Init<'info> {
+    #[account(signer)]
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub signer: AccountInfo<'info>,
+    #[account(mut)]
+    pub from_or_to_pubkey: Box<Account<'info, TokenAccount>>,
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub token_program: AccountInfo<'info>,
+}
+
+impl<'info> Wrap<'info> {
+    fn transfer_context(
         &self,
     ) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
         let cpi_accounts = Transfer {
-            from: self.source_pubkey.to_account_info().clone(),
+            from: self.owner_pubkey.to_account_info().clone(),
             to: self
-                .destination_pubkey
+                .to_pubkey
+                .to_account_info()
+                .clone(),
+            authority: self.signer.clone(),
+        };
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
+
+    fn mint_context(
+        &self,
+    ) -> CpiContext<'_, '_, '_, 'info, MintTo<'info>> {
+        let cpi_accounts = MintTo {
+            mint: self.mint_pubkey.to_account_info().clone(),
+            to: self
+                .from_or_to_pubkey
+                .to_account_info()
+                .clone(),
+            authority: self.pda_account_pubkey.clone(),
+        };
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
+}
+
+impl<'info> UnWrap<'info> {
+    fn pda_transfer_context(
+        &self,
+    ) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+        let cpi_accounts = Transfer {
+            from: self.owner_pubkey.to_account_info().clone(),
+            to: self
+                .to_pubkey
+                .to_account_info()
+                .clone(),
+            authority: self.pda_account_pubkey.clone(),
+        };
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
+
+    fn burn_context(
+        &self,
+    ) -> CpiContext<'_, '_, '_, 'info, Burn<'info>> {
+        let cpi_accounts = Burn {
+            mint: self.mint_pubkey.to_account_info().clone(),
+            from: self
+                .from_or_to_pubkey
                 .to_account_info()
                 .clone(),
             authority: self.signer.clone(),
@@ -71,17 +173,11 @@ impl<'info> Stake<'info> {
     }
 }
 
-impl<'info> Fmint<'info> {
-    fn mint_to_user_context(
-        &self,
-    ) -> CpiContext<'_, '_, '_, 'info, MintTo<'info>> {
-        let cpi_accounts = MintTo {
-            mint: self.mint_token_pubkey.to_account_info().clone(),
-            to: self
-                .destination_pubkey
-                .to_account_info()
-                .clone(),
-            authority: self.signer.clone(),
+impl<'info> Init<'info> {
+    fn init_set_authority_context(&self) -> CpiContext<'_, '_, '_, 'info, SetAuthority<'info>> {
+        let cpi_accounts = SetAuthority {
+            account_or_mint: self.from_or_to_pubkey.to_account_info().clone(),
+            current_authority: self.signer.clone(),
         };
         CpiContext::new(self.token_program.clone(), cpi_accounts)
     }
