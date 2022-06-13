@@ -45,10 +45,8 @@ pub mod cryptex_sol_anchor {
         Ok(())
     }
 
-    //This function should only be called once in the entire life time of the application, calling twice
-    //would fail on second try because its just basically authorizing pda's to use a particular token from 
-    //the user's token wallet address that signed the authorization.
-    pub fn init(ctx: Context<Init>) -> Result<()> {
+    // Assigning authority to pda, can either be acct authority or mint authority
+    pub fn assign_authority_to_pda(ctx: Context<AssignAuthorityToPDA>) -> Result<()> {
 
         let (pda, _bump) = Pubkey::find_program_address(&[b"cryptex"], ctx.program_id);
 
@@ -68,13 +66,13 @@ pub struct Wrap<'info> {
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub signer: AccountInfo<'info>,
     #[account(mut)]
-    pub to_pubkey: Box<Account<'info, TokenAccount>>,
+    pub transfer_to_pubkey: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub owner_pubkey: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub mint_pubkey: Box<Account<'info, Mint>>,
     #[account(mut)]
-    pub from_or_to_pubkey: Box<Account<'info, TokenAccount>>,
+    pub mint_to_pubkey: Box<Account<'info, TokenAccount>>,
     #[account()]
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub pda_account_pubkey: AccountInfo<'info>,
@@ -88,13 +86,13 @@ pub struct UnWrap<'info> {
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub signer: AccountInfo<'info>,
     #[account(mut)]
-    pub to_pubkey: Box<Account<'info, TokenAccount>>,
+    pub transfer_to_pubkey: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub owner_pubkey: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub mint_pubkey: Box<Account<'info, Mint>>,
     #[account(mut)]
-    pub from_or_to_pubkey: Box<Account<'info, TokenAccount>>,
+    pub burn_from: Box<Account<'info, TokenAccount>>,
     #[account()]
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub pda_account_pubkey: AccountInfo<'info>,
@@ -103,12 +101,12 @@ pub struct UnWrap<'info> {
 }
 
 #[derive(Accounts)]
-pub struct Init<'info> {
+pub struct AssignAuthorityToPDA<'info> {
     #[account(signer)]
     /// CHECK: This is not dangerous because we don't read or write from this account
-    pub signer: AccountInfo<'info>,
+    pub current_authority_signer: AccountInfo<'info>,
     #[account(mut)]
-    pub from_or_to_pubkey: Box<Account<'info, TokenAccount>>,
+    pub acct_or_mint_pubkey: Box<Account<'info, TokenAccount>>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub token_program: AccountInfo<'info>,
 }
@@ -120,7 +118,7 @@ impl<'info> Wrap<'info> {
         let cpi_accounts = Transfer {
             from: self.owner_pubkey.to_account_info().clone(),
             to: self
-                .to_pubkey
+                .transfer_to_pubkey
                 .to_account_info()
                 .clone(),
             authority: self.signer.clone(),
@@ -134,7 +132,7 @@ impl<'info> Wrap<'info> {
         let cpi_accounts = MintTo {
             mint: self.mint_pubkey.to_account_info().clone(),
             to: self
-                .from_or_to_pubkey
+                .mint_to_pubkey
                 .to_account_info()
                 .clone(),
             authority: self.pda_account_pubkey.clone(),
@@ -150,7 +148,7 @@ impl<'info> UnWrap<'info> {
         let cpi_accounts = Transfer {
             from: self.owner_pubkey.to_account_info().clone(),
             to: self
-                .to_pubkey
+                .transfer_to_pubkey
                 .to_account_info()
                 .clone(),
             authority: self.pda_account_pubkey.clone(),
@@ -164,7 +162,7 @@ impl<'info> UnWrap<'info> {
         let cpi_accounts = Burn {
             mint: self.mint_pubkey.to_account_info().clone(),
             from: self
-                .from_or_to_pubkey
+                .burn_from
                 .to_account_info()
                 .clone(),
             authority: self.signer.clone(),
@@ -173,11 +171,11 @@ impl<'info> UnWrap<'info> {
     }
 }
 
-impl<'info> Init<'info> {
+impl<'info> AssignAuthorityToPDA<'info> {
     fn init_set_authority_context(&self) -> CpiContext<'_, '_, '_, 'info, SetAuthority<'info>> {
         let cpi_accounts = SetAuthority {
-            account_or_mint: self.from_or_to_pubkey.to_account_info().clone(),
-            current_authority: self.signer.clone(),
+            account_or_mint: self.acct_or_mint_pubkey.to_account_info().clone(),
+            current_authority: self.current_authority_signer.clone(),
         };
         CpiContext::new(self.token_program.clone(), cpi_accounts)
     }

@@ -29,9 +29,9 @@ describe("Cryptex Dapp Test", () => {
     
     const assumed_fluidity_usdc_account = new PublicKey('ACqqDBXdFhgatszRESwmdkfgLH7coJm7SxaTuiEhEQ9y')
 
-    await program.methods.init().accounts({
-        signer: current_auth_keypair.publicKey,
-        fromOrToPubkey: assumed_fluidity_usdc_account,
+    await program.methods.assignAuthorityToPda().accounts({
+        currentAuthoritySigner: current_auth_keypair.publicKey,
+        acctOrMintPubkey: assumed_fluidity_usdc_account,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .signers([current_auth_keypair])
@@ -51,10 +51,10 @@ describe("Cryptex Dapp Test", () => {
     );
     await program.methods.wrap(new BN(10)).accounts({
         signer: keypairUser.publicKey,
-        toPubkey: new PublicKey('ACqqDBXdFhgatszRESwmdkfgLH7coJm7SxaTuiEhEQ9y'),
+        transferToPubkey: new PublicKey('ACqqDBXdFhgatszRESwmdkfgLH7coJm7SxaTuiEhEQ9y'),
         ownerPubkey: usdcAcctUser,
         mintPubkey: new PublicKey('6zdV6NKr7JnnyFxwGyBjgD3N8sJrR9rM5nmqUw7msrS'),
-        fromOrToPubkey: cryptex_usdcAcctUser,
+        mintToPubkey: cryptex_usdcAcctUser,
         pdaAccountPubkey: PDA[0],
         tokenProgram: TOKEN_PROGRAM_ID,
       })
@@ -76,10 +76,10 @@ describe("Cryptex Dapp Test", () => {
 
     await program.methods.unwrap(new BN(10)).accounts({
       signer: keypairUser.publicKey,
-      toPubkey: usdcAcctUser,
+      transferToPubkey: usdcAcctUser,
       ownerPubkey: new PublicKey('ACqqDBXdFhgatszRESwmdkfgLH7coJm7SxaTuiEhEQ9y'),
       mintPubkey: new PublicKey('6zdV6NKr7JnnyFxwGyBjgD3N8sJrR9rM5nmqUw7msrS'),
-      fromOrToPubkey: cryptex_usdcAcctUser,
+      burnFrom: cryptex_usdcAcctUser,
       pdaAccountPubkey: PDA[0],
       tokenProgram: TOKEN_PROGRAM_ID,
       })
