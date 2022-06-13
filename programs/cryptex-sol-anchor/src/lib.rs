@@ -37,7 +37,6 @@ pub mod cryptex_sol_anchor {
          amount,
         )?;
         
-        // this happen because init fn has been called which authorizes a pda to transfer token back to user from this address
         token::transfer(
             ctx.accounts.pda_transfer_context().with_signer(&[&[&b"cryptex"[..], &[bump]]]),
             amount,
