@@ -1,8 +1,13 @@
+use solana_program::pubkey::Pubkey;
+use std::str::FromStr;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, CloseAccount, Burn, Mint, MintTo, SetAuthority, TokenAccount, Transfer, InitializeAccount};
 use spl_token::instruction::AuthorityType;
+use jet_proto_v1_cpi::*;
 
 declare_id!("HZoyHJuhYdp7qSBXbthx8mRX5hNTQWcyR5icn27CVPeg");
+
+const TRUSTED_AUTHORITY: &str = "2VYJuoYPoHmtNkrYcuYtppBiX1sxiMmL2mvDZuJq27Jr";
 
 #[program]
 pub mod cryptex_sol_anchor {
@@ -10,6 +15,7 @@ pub mod cryptex_sol_anchor {
 
     pub fn wrap(ctx: Context<Wrap>, amount: u64) -> Result<()> {
 
+        
         let (pda, bump) = Pubkey::find_program_address(&[b"cryptex"], ctx.program_id);
 
         msg!("pda {}, porgramID {} :: Wrapping!", pda, ctx.program_id);
@@ -106,6 +112,22 @@ pub struct AssignAuthorityToPDA<'info> {
     pub current_authority_signer: AccountInfo<'info>,
     #[account(mut)]
     pub acct_or_mint_pubkey: Box<Account<'info, TokenAccount>>,
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub token_program: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct Reward<'info> {
+    #[account(signer)]
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub signer: AccountInfo<'info>,
+    
+    #[account(
+        mut,
+        constraint = Pubkey::from_str(TRUSTED_AUTHORITY).unwrap() == *signer.key,
+    )]
+    pub sender_address_pubkey: Box<Account<'info, TokenAccount>>,
+    pub receiver_address_pubkey: Box<Account<'info, TokenAccount>>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub token_program: AccountInfo<'info>,
 }
