@@ -20,7 +20,7 @@ overflow-checks = true
 
 [dependencies]
 solana-program = "1.9.4"
-jet-proto-v1-cpi = { git = "https://github.com/harlexkhal/jet-v1", branch = "update-fix-lib-dep" }
+jet-proto-v1-cpi = { git = "https://github.com/fluidity-money/jet-v1", branch = "master" }
 anchor-lang = "0.24.2"
 anchor-spl = "0.24.2"
 spl-token = {version = "3", features = ["no-entrypoint"]}

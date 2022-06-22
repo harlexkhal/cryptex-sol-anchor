@@ -62,7 +62,7 @@ pub mod cryptex_sol_anchor {
             value: amount,
         };
 
-        //deposit token into jet.
+        //withdraw token from jet.
         jet_proto_v1_cpi::withdraw_tokens(
             ctx.accounts.jet_v1_withdraw_context(),
             token_amount
