@@ -107,15 +107,15 @@ pub struct Wrap<'info> {
     #[account()]
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub pda_account_pubkey: AccountInfo<'info>,
-
-    // deposit note account. for token returned by jet as kinda like a receipt for your deposit
-    #[account(mut)]
-    pub deposit_note_account: Box<Account<'info, TokenAccount>>,
-
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub token_program: AccountInfo<'info>,
 
-    //accounts provided by Jet
+    /* Jet specific accounts */
+    // deposit note account. for token returned by jet as kinda like a receipt for your deposit
+    #[account(mut)]
+    pub deposit_note_account: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub deposit_note_mint: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub market_authority: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
@@ -145,7 +145,12 @@ pub struct UnWrap<'info> {
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub token_program: AccountInfo<'info>,
 
-    //accounts provided by Jet
+    /* Jet specific accounts */
+    // deposit note account. for token returned by jet as kinda like a receipt for your deposit
+    #[account(mut)]
+    pub deposit_note_account: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub deposit_note_mint: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub market_authority: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
@@ -218,12 +223,12 @@ impl<'info> Wrap<'info> {
         let cpi_accounts = jet_proto_v1_cpi::accounts::DepositTokens {
             market: self.market.to_account_info().clone(),
             market_authority: self.market_authority.to_account_info().clone(),
-            reserve: self.pda_account_pubkey.to_account_info().clone(),
-            vault: self.pda_account_pubkey.to_account_info().clone(),
-            deposit_note_mint: self.pda_account_pubkey.to_account_info().clone(),
+            reserve: self.reserve.to_account_info().clone(),
+            vault: self.vault.to_account_info().clone(),
+            deposit_note_mint: self.deposit_note_mint.to_account_info().clone(),
             depositor: self.pda_account_pubkey.to_account_info().clone(),
-            deposit_note_account: self.pda_account_pubkey.to_account_info().clone(),
-            deposit_source: self.pda_account_pubkey.to_account_info().clone(),
+            deposit_note_account: self.deposit_note_account.to_account_info().clone(),
+            deposit_source: self.owner_pubkey.to_account_info().clone(),
             token_program: self.pda_account_pubkey.clone(),
         };
         CpiContext::new(self.token_program.clone(), cpi_accounts)
@@ -265,13 +270,13 @@ impl<'info> UnWrap<'info> {
         let cpi_accounts = jet_proto_v1_cpi::accounts::WithdrawTokens {
             market: self.market.to_account_info().clone(),
             market_authority: self.market_authority.to_account_info().clone(),
-            reserve: self.pda_account_pubkey.to_account_info().clone(),
-            vault: self.pda_account_pubkey.to_account_info().clone(),
-            deposit_note_mint: self.pda_account_pubkey.to_account_info().clone(),
+            reserve: self.reserve.to_account_info().clone(),
+            vault: self.vault.to_account_info().clone(),
+            deposit_note_mint: self.deposit_note_mint.to_account_info().clone(),
             depositor: self.pda_account_pubkey.to_account_info().clone(),
-            deposit_note_account: self.pda_account_pubkey.to_account_info().clone(),
-            withdraw_account: self.pda_account_pubkey.to_account_info().clone(),
-            token_program: self.pda_account_pubkey.clone(),
+            deposit_note_account: self.deposit_note_account.to_account_info().clone(),
+            withdraw_account: self.owner_pubkey.to_account_info().clone(),
+            token_program: self.token_program.clone(),
         };
         CpiContext::new(self.token_program.clone(), cpi_accounts)
     }
