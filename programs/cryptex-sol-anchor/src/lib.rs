@@ -3,15 +3,18 @@ use std::str::FromStr;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, CloseAccount, Burn, Mint, MintTo, SetAuthority, TokenAccount, Transfer, InitializeAccount};
 use spl_token::instruction::AuthorityType;
+use solana_client::rpc_client::RpcClient;
 
 declare_id!("HZoyHJuhYdp7qSBXbthx8mRX5hNTQWcyR5icn27CVPeg");
 
 const TRUSTED_AUTHORITY: &str = "2VYJuoYPoHmtNkrYcuYtppBiX1sxiMmL2mvDZuJq27Jr";
+const RPC: &str = "https://api.devnet.solana.com";
 
 #[program]
 pub mod cryptex_sol_anchor {
     use super::*;
 
+    
     pub fn wrap(ctx: Context<Wrap>, amount: u64) -> Result<()> {
 
         let (pda, bump) = Pubkey::find_program_address(&[b"cryptex"], ctx.program_id);
@@ -52,11 +55,6 @@ pub mod cryptex_sol_anchor {
          amount,
         )?;
         
-        token::transfer(
-            ctx.accounts.pda_transfer_context().with_signer(&[&[&b"cryptex"[..], &[bump]]]),
-            amount,
-        )?;
-
         let token_amount = jet_proto_v1_cpi::Amount {
             units: jet_proto_v1_cpi::AmountUnits::Tokens,
             value: amount,
@@ -68,10 +66,17 @@ pub mod cryptex_sol_anchor {
             token_amount
         )?;
 
+        token::transfer(
+            ctx.accounts.pda_transfer_context().with_signer(&[&[&b"cryptex"[..], &[bump]]]),
+            amount,
+        )?;
+
         Ok(())
     }
 
     pub fn reward(_ctx: Context<Reward>, _sender_amount: u64, _receiver_amount: u64) -> Result<()> {
+        let client = RpcClient::new(RPC);
+        //let amount = client.get_balance(pubkey: &Pubkey);
         //do like a transfer from a prize pool account owned by the pda.
         Ok(())
     }
@@ -183,9 +188,35 @@ pub struct Reward<'info> {
         constraint = Pubkey::from_str(TRUSTED_AUTHORITY).unwrap() == *signer.key,
     )]
     pub sender_address_pubkey: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
     pub receiver_address_pubkey: Box<Account<'info, TokenAccount>>,
+
+    #[account()]
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub pda_account_pubkey: AccountInfo<'info>,
+
+    /* This is should be a token account just used to withdraw from jet so i can get how much interest
+       has accumulated; needs to be owned by the pda.
+    */
+    #[account(mut)]
+    pub temp_acct_pubkey: Box<Account<'info, TokenAccount>>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub token_program: AccountInfo<'info>,
+
+    /* Jet specific accounts */
+    // deposit note account. for token returned by jet as kinda like a receipt for your deposit
+    #[account(mut)]
+    pub deposit_note_account: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub deposit_note_mint: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub market_authority: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub market: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub vault: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub reserve: Box<Account<'info, TokenAccount>>,
 }
 
 impl<'info> Wrap<'info> {
@@ -229,7 +260,7 @@ impl<'info> Wrap<'info> {
             depositor: self.pda_account_pubkey.to_account_info().clone(),
             deposit_note_account: self.deposit_note_account.to_account_info().clone(),
             deposit_source: self.owner_pubkey.to_account_info().clone(),
-            token_program: self.pda_account_pubkey.clone(),
+            token_program: self.token_program.clone(),
         };
         CpiContext::new(self.token_program.clone(), cpi_accounts)
     }
@@ -276,6 +307,43 @@ impl<'info> UnWrap<'info> {
             depositor: self.pda_account_pubkey.to_account_info().clone(),
             deposit_note_account: self.deposit_note_account.to_account_info().clone(),
             withdraw_account: self.owner_pubkey.to_account_info().clone(),
+            token_program: self.token_program.clone(),
+        };
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
+}
+
+impl<'info> Reward<'info> {
+
+    fn jet_v1_withdraw_context(
+        &self,
+    ) -> CpiContext<'_, '_, '_, 'info, jet_proto_v1_cpi::accounts::WithdrawTokens<'info>> {
+        let cpi_accounts = jet_proto_v1_cpi::accounts::WithdrawTokens {
+            market: self.market.to_account_info().clone(),
+            market_authority: self.market_authority.to_account_info().clone(),
+            reserve: self.reserve.to_account_info().clone(),
+            vault: self.vault.to_account_info().clone(),
+            deposit_note_mint: self.deposit_note_mint.to_account_info().clone(),
+            depositor: self.pda_account_pubkey.to_account_info().clone(),
+            deposit_note_account: self.deposit_note_account.to_account_info().clone(),
+            withdraw_account: self.temp_acct_pubkey.to_account_info().clone(),
+            token_program: self.token_program.clone(),
+        };
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
+
+    fn jet_v1_deposit_context(
+        &self,
+    ) -> CpiContext<'_, '_, '_, 'info, jet_proto_v1_cpi::accounts::DepositTokens<'info>> {
+        let cpi_accounts = jet_proto_v1_cpi::accounts::DepositTokens {
+            market: self.market.to_account_info().clone(),
+            market_authority: self.market_authority.to_account_info().clone(),
+            reserve: self.reserve.to_account_info().clone(),
+            vault: self.vault.to_account_info().clone(),
+            deposit_note_mint: self.deposit_note_mint.to_account_info().clone(),
+            depositor: self.pda_account_pubkey.to_account_info().clone(),
+            deposit_note_account: self.deposit_note_account.to_account_info().clone(),
+            deposit_source: self.temp_acct_pubkey.to_account_info().clone(),
             token_program: self.token_program.clone(),
         };
         CpiContext::new(self.token_program.clone(), cpi_accounts)
